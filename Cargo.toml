@@ -1,0 +1,9 @@
+[package]
+name = "netlify_toml"
+version = "0.1.0"
+authors = ["David Calavera <david.calavera@gmail.com>"]
+
+[dependencies]
+toml = "0.4"
+serde = "1.0"
+serde_derive = "1.0"
