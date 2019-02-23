@@ -38,6 +38,11 @@ for = "/foo"
     if let Some(ref cmd) = prod.command {
        assert_eq!(cmd, &String::from("make prod"));
     }
+
+    let headers = config.headers.unwrap();
+    let header = &headers[0];
+    assert_eq!("/foo", header.path);
+    assert_eq!(1, header.headers["X-Foo"].values.len())
 }
 
 #[test]
@@ -61,4 +66,62 @@ environment = {BRANCH = "true"}
 
     let e = String::from("2");
     assert_eq!(env.get("OVERRIDE"), Some(&e));
+}
+
+#[test]
+fn it_fails_to_parse_invalid_headers() {
+    let io = r#"
+[[headers]]
+for = "/foo"
+[[headers.values]]
+    X-Foo = "Bar"
+    "#;
+
+    let result = netlify_toml::from_str(&io);
+    match result {
+        Ok(v) => assert!(false, "unexpected config: {:?}", v),
+        Err(e) => println!("error parsing headers: {:?}", e),
+    }
+}
+
+#[test]
+fn it_loads_headers_as_array() {
+    let io = r#"
+[[headers]]
+for = "/foo"
+[headers.values]
+    X-Foo = [
+        "Bar",
+        "Baz",
+        "Qux"
+    ]
+    "#;
+
+    let config = netlify_toml::from_str(&io).unwrap();
+    let mut headers = config.headers.unwrap();
+
+    let header = headers.pop().unwrap();
+    assert_eq!("/foo", header.path);
+    assert_eq!(3, header.headers["X-Foo"].values.len())
+}
+
+#[test]
+fn it_splits_strings_as_array() {
+    let io = r#"
+[[headers]]
+for = "/foo"
+[headers.values]
+    Link = """
+        </style1.css>; rel=preload; as=style,\
+        </style2.css>; rel=preload; as=style,\
+        </style3.css>; rel=preload; as=style"""
+    "#;
+
+    let config = netlify_toml::from_str(&io).unwrap();
+    let mut headers = config.headers.unwrap();
+
+    let header = headers.pop().unwrap();
+    assert_eq!("/foo", header.path);
+    assert_eq!(3, header.headers["Link"].values.len())
+
 }

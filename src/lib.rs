@@ -1,11 +1,16 @@
+extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 extern crate toml;
 
+use std::fmt;
+use serde::de;
+use serde::de::{value, Deserialize, Deserializer, SeqAccess, Visitor};
+use serde::ser::{Serialize, Serializer, SerializeSeq};
 use std::collections::HashMap;
 
 /// Config represents the full configuration within a netlify.toml file.
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
     pub build: Option<Context>,
     pub context: Option<HashMap<String, Context>>,
@@ -15,7 +20,7 @@ pub struct Config {
 }
 
 /// Context holds the build variables Netlify uses to build a site before deploying it.
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Context {
     pub base: Option<String>,
     pub publish: Option<String>,
@@ -25,7 +30,7 @@ pub struct Context {
 }
 
 /// Redirect holds information about a url redirect.
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Redirect {
     pub from: String,
     pub to: String,
@@ -35,17 +40,22 @@ pub struct Redirect {
     pub headers: Option<HashMap<String, String>>,
 }
 
-/// Header olds information to add response headers for a give url.
-#[derive(Serialize, Deserialize)]
+/// Header holds information to add response headers for a give url.
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Header {
     #[serde(rename="for")]
     pub path: String,
     #[serde(rename="values")]
-    pub headers: HashMap<String, String>,
+    pub headers: HashMap<String, HeaderValues>,
+}
+
+#[derive(Debug)]
+pub struct HeaderValues {
+    pub values: Vec<String>,
 }
 
 /// Template holds information to turn a repository into a Netlify template.
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Template {
     #[serde(rename="incoming-hooks")]
     pub hooks: Option<Vec<String>>,
@@ -127,5 +137,64 @@ impl Config {
         }
 
         result
+    }
+}
+
+// This is the trait that informs Serde how to deserialize HeaderValues.
+impl<'de> Deserialize<'de> for HeaderValues
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+
+        struct HeaderValuesVisitor;
+        impl<'de> Visitor<'de> for HeaderValuesVisitor {
+            type Value = HeaderValues;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("string or vector")
+            }
+
+            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+            where E: de::Error,
+            {
+                if v.contains(",") {
+                    let values = v.split(",").map(|s| String::from(s.trim())).collect();
+                    return Ok(HeaderValues{ values: values })
+                }
+
+                Ok(HeaderValues{ values: vec![v.to_owned()] })
+            }
+
+            fn visit_seq<V>(self, v: V) -> Result<Self::Value, V::Error>
+            where V: SeqAccess<'de>,
+            {
+                let items = Deserialize::deserialize(value::SeqAccessDeserializer::new(v))?;
+                Ok(HeaderValues{ values: items })
+            }
+        }
+        // Instantiate our Visitor and ask the Deserializer to drive
+        // it over the input data, resulting in an instance of MyMap.
+        deserializer.deserialize_any(HeaderValuesVisitor{})
+    }
+}
+
+// This is the trait that informs Serde how to serialize HeaderValues.
+impl Serialize for HeaderValues
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        if self.values.len() > 1 {
+            let mut seq = serializer.serialize_seq(Some(self.values.len()))?;
+            for e in self.values.to_owned() {
+                seq.serialize_element(&e)?;
+            }
+            seq.end()
+        } else {
+            serializer.serialize_str(&self.values[0])
+        }
     }
 }
