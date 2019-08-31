@@ -125,3 +125,40 @@ for = "/foo"
     assert_eq!(3, header.headers["Link"].values.len())
 
 }
+
+#[test]
+fn full_redirect_rules() {
+    let io = r#"
+[[redirects]]
+  from = "/old-path"
+  to = "/new-path"
+  status = 302
+  force = true
+  query = {path = ":path"}
+  conditions = {Language = ["en"], Country = ["US"], Role = ["admin"]}
+  headers = {X-From = "Netlify"}
+  signed = "API_SIGNATURE_TOKEN" 
+    "#;
+
+    let config = netlify_toml::from_str(&io).unwrap();
+    let mut redirects = config.redirects.unwrap();
+    assert_eq!(1, redirects.len());
+
+    let redirect = redirects.pop().unwrap();
+    assert_eq!("/old-path", redirect.from);
+    assert_eq!("/new-path", redirect.to);
+    assert_eq!("API_SIGNATURE_TOKEN", redirect.signed.unwrap());
+    assert_eq!(302, redirect.status.unwrap());
+    assert_eq!(true, redirect.force.unwrap());
+
+    let query = redirect.query.unwrap();
+    assert_eq!(1, query.len());
+    assert_eq!(":path", query.get("path").unwrap());
+
+    let conditions = redirect.conditions.unwrap();
+    assert_eq!(3, conditions.len());
+
+    let headers = redirect.headers.unwrap();
+    assert_eq!(1, headers.len());
+    assert_eq!("Netlify", headers.get("X-From").unwrap());
+}

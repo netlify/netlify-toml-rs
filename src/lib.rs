@@ -38,6 +38,8 @@ pub struct Redirect {
     pub status: Option<i64>,
     pub force: Option<bool>,
     pub headers: Option<HashMap<String, String>>,
+    pub query: Option<HashMap<String, String>>,
+    pub conditions: Option<HashMap<String, Vec<String>>>,
 }
 
 /// Header holds information to add response headers for a give url.
