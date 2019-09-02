@@ -10,7 +10,7 @@ use serde::ser::{Serialize, Serializer, SerializeSeq};
 use std::collections::HashMap;
 
 /// Config represents the full configuration within a netlify.toml file.
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Default)]
 pub struct Config {
     pub build: Option<Context>,
     pub context: Option<HashMap<String, Context>>,
@@ -20,7 +20,7 @@ pub struct Config {
 }
 
 /// Context holds the build variables Netlify uses to build a site before deploying it.
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Default)]
 pub struct Context {
     pub base: Option<String>,
     pub publish: Option<String>,
@@ -45,7 +45,7 @@ pub struct Redirect {
 }
 
 /// Header holds information to add response headers for a give url.
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Default)]
 pub struct Header {
     #[serde(rename="for")]
     pub path: String,
@@ -53,13 +53,13 @@ pub struct Header {
     pub headers: HashMap<String, HeaderValues>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Default)]
 pub struct HeaderValues {
     pub values: Vec<String>,
 }
 
 /// Template holds information to turn a repository into a Netlify template.
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Default)]
 pub struct Template {
     #[serde(rename="incoming-hooks")]
     pub hooks: Option<Vec<String>>,
@@ -207,6 +207,21 @@ fn default_status() -> i64 {
     301
 }
 
+impl Default for Redirect {
+    fn default() -> Redirect {
+        Redirect {
+            from: String::new(),
+            to: String::new(),
+            status: default_status(),
+            force: false,
+            signed: None,
+            conditions: None,
+            query: None,
+            headers: None,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -235,5 +250,13 @@ mod tests {
             signed: None,
         };
         assert_eq!(r, r2)
+    }
+
+    #[test]
+    fn default_redirect() {
+        let r = Redirect {from: "/foo".to_string(), to: "/bar".to_string(), ..Default::default()};
+        assert_eq!("/foo", r.from);
+        assert_eq!("/bar", r.to);
+        assert_eq!(301, r.status);
     }
 }
