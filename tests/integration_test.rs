@@ -148,8 +148,8 @@ fn full_redirect_rules() {
     assert_eq!("/old-path", redirect.from);
     assert_eq!("/new-path", redirect.to);
     assert_eq!("API_SIGNATURE_TOKEN", redirect.signed.unwrap());
-    assert_eq!(302, redirect.status.unwrap());
-    assert_eq!(true, redirect.force.unwrap());
+    assert_eq!(302, redirect.status);
+    assert_eq!(true, redirect.force);
 
     let query = redirect.query.unwrap();
     assert_eq!(1, query.len());
@@ -161,4 +161,23 @@ fn full_redirect_rules() {
     let headers = redirect.headers.unwrap();
     assert_eq!(1, headers.len());
     assert_eq!("Netlify", headers.get("X-From").unwrap());
+}
+
+#[test]
+fn redirect_rule_with_defaults() {
+    let io = r#"
+[[redirects]]
+  from = "/old-path"
+  to = "/new-path"
+    "#;
+
+    let config = netlify_toml::from_str(&io).unwrap();
+    let mut redirects = config.redirects.unwrap();
+    assert_eq!(1, redirects.len());
+
+    let redirect = redirects.pop().unwrap();
+    assert_eq!("/old-path", redirect.from);
+    assert_eq!("/new-path", redirect.to);
+    assert_eq!(301, redirect.status);
+    assert_eq!(false, redirect.force);
 }

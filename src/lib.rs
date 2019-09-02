@@ -10,7 +10,7 @@ use serde::ser::{Serialize, Serializer, SerializeSeq};
 use std::collections::HashMap;
 
 /// Config represents the full configuration within a netlify.toml file.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct Config {
     pub build: Option<Context>,
     pub context: Option<HashMap<String, Context>>,
@@ -20,7 +20,7 @@ pub struct Config {
 }
 
 /// Context holds the build variables Netlify uses to build a site before deploying it.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct Context {
     pub base: Option<String>,
     pub publish: Option<String>,
@@ -30,20 +30,22 @@ pub struct Context {
 }
 
 /// Redirect holds information about a url redirect.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct Redirect {
     pub from: String,
     pub to: String,
-    pub signed: Option<String>,
-    pub status: Option<i64>,
-    pub force: Option<bool>,
+    #[serde(default = "default_status")]
+    pub status: i64,
+    #[serde(default)]
+    pub force: bool,
     pub headers: Option<HashMap<String, String>>,
     pub query: Option<HashMap<String, String>>,
     pub conditions: Option<HashMap<String, Vec<String>>>,
+    pub signed: Option<String>,
 }
 
 /// Header holds information to add response headers for a give url.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct Header {
     #[serde(rename="for")]
     pub path: String,
@@ -51,13 +53,13 @@ pub struct Header {
     pub headers: HashMap<String, HeaderValues>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct HeaderValues {
     pub values: Vec<String>,
 }
 
 /// Template holds information to turn a repository into a Netlify template.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct Template {
     #[serde(rename="incoming-hooks")]
     pub hooks: Option<Vec<String>>,
@@ -198,5 +200,40 @@ impl Serialize for HeaderValues
         } else {
             serializer.serialize_str(&self.values[0])
         }
+    }
+}
+
+fn default_status() -> i64 {
+    301
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn partial_equal() {
+        let r = Redirect {
+            from: "/foo".to_string(),
+            to: "/bar".to_string(),
+            status: 301,
+            force: false,
+            headers: None,
+            query: None,
+            conditions: None,
+            signed: None,
+        };
+
+        let r2 = Redirect {
+            from: "/foo".to_string(),
+            to: "/bar".to_string(),
+            status: 301,
+            force: false,
+            headers: None,
+            query: None,
+            conditions: None,
+            signed: None,
+        };
+        assert_eq!(r, r2)
     }
 }
