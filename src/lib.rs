@@ -35,7 +35,7 @@ pub struct Redirect {
     pub from: String,
     pub to: String,
     #[serde(default = "default_status")]
-    pub status: i64,
+    pub status: u32,
     #[serde(default)]
     pub force: bool,
     pub headers: Option<HashMap<String, String>>,
@@ -203,7 +203,7 @@ impl Serialize for HeaderValues
     }
 }
 
-fn default_status() -> i64 {
+fn default_status() -> u32 {
     301
 }
 
