@@ -162,9 +162,9 @@ impl<'de> Deserialize<'de> for HeaderValues {
             where
                 E: de::Error,
             {
-                if v.contains(",") {
-                    let values = v.split(",").map(|s| String::from(s.trim())).collect();
-                    return Ok(HeaderValues { values: values });
+                if v.contains(',') {
+                    let values = v.split(',').map(|s| String::from(s.trim())).collect();
+                    return Ok(HeaderValues { values });
                 }
 
                 Ok(HeaderValues {
