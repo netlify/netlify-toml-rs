@@ -3,11 +3,11 @@ extern crate serde;
 extern crate serde_derive;
 extern crate toml;
 
-use std::fmt;
 use serde::de;
 use serde::de::{value, Deserialize, Deserializer, SeqAccess, Visitor};
-use serde::ser::{Serialize, Serializer, SerializeSeq};
-use std::collections::HashMap;
+use serde::ser::{Serialize, SerializeSeq, Serializer};
+use std::collections::{HashMap, HashSet};
+use std::fmt;
 
 /// Config represents the full configuration within a netlify.toml file.
 #[derive(Debug, Serialize, Deserialize, PartialEq, Default)]
@@ -40,16 +40,16 @@ pub struct Redirect {
     pub force: bool,
     pub headers: Option<HashMap<String, String>>,
     pub query: Option<HashMap<String, String>>,
-    pub conditions: Option<HashMap<String, Vec<String>>>,
+    pub conditions: Option<HashMap<String, HashSet<String>>>,
     pub signed: Option<String>,
 }
 
 /// Header holds information to add response headers for a give url.
 #[derive(Debug, Serialize, Deserialize, PartialEq, Default)]
 pub struct Header {
-    #[serde(rename="for")]
+    #[serde(rename = "for")]
     pub path: String,
-    #[serde(rename="values")]
+    #[serde(rename = "values")]
     pub headers: HashMap<String, HeaderValues>,
 }
 
@@ -61,7 +61,7 @@ pub struct HeaderValues {
 /// Template holds information to turn a repository into a Netlify template.
 #[derive(Debug, Serialize, Deserialize, PartialEq, Default)]
 pub struct Template {
-    #[serde(rename="incoming-hooks")]
+    #[serde(rename = "incoming-hooks")]
     pub hooks: Option<Vec<String>>,
     pub environment: Option<HashMap<String, String>>,
 }
@@ -145,13 +145,11 @@ impl Config {
 }
 
 // This is the trait that informs Serde how to deserialize HeaderValues.
-impl<'de> Deserialize<'de> for HeaderValues
-{
+impl<'de> Deserialize<'de> for HeaderValues {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-
         struct HeaderValuesVisitor;
         impl<'de> Visitor<'de> for HeaderValuesVisitor {
             type Value = HeaderValues;
@@ -161,32 +159,35 @@ impl<'de> Deserialize<'de> for HeaderValues
             }
 
             fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-            where E: de::Error,
+            where
+                E: de::Error,
             {
                 if v.contains(",") {
                     let values = v.split(",").map(|s| String::from(s.trim())).collect();
-                    return Ok(HeaderValues{ values: values })
+                    return Ok(HeaderValues { values: values });
                 }
 
-                Ok(HeaderValues{ values: vec![v.to_owned()] })
+                Ok(HeaderValues {
+                    values: vec![v.to_owned()],
+                })
             }
 
             fn visit_seq<V>(self, v: V) -> Result<Self::Value, V::Error>
-            where V: SeqAccess<'de>,
+            where
+                V: SeqAccess<'de>,
             {
                 let items = Deserialize::deserialize(value::SeqAccessDeserializer::new(v))?;
-                Ok(HeaderValues{ values: items })
+                Ok(HeaderValues { values: items })
             }
         }
         // Instantiate our Visitor and ask the Deserializer to drive
         // it over the input data, resulting in an instance of MyMap.
-        deserializer.deserialize_any(HeaderValuesVisitor{})
+        deserializer.deserialize_any(HeaderValuesVisitor {})
     }
 }
 
 // This is the trait that informs Serde how to serialize HeaderValues.
-impl Serialize for HeaderValues
-{
+impl Serialize for HeaderValues {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -227,7 +228,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn partial_equal() {
+    fn test_partial_equal() {
         let r = Redirect {
             from: "/foo".to_string(),
             to: "/bar".to_string(),
@@ -253,8 +254,12 @@ mod tests {
     }
 
     #[test]
-    fn default_redirect() {
-        let r = Redirect {from: "/foo".to_string(), to: "/bar".to_string(), ..Default::default()};
+    fn test_default_redirect() {
+        let r = Redirect {
+            from: "/foo".to_string(),
+            to: "/bar".to_string(),
+            ..Default::default()
+        };
         assert_eq!("/foo", r.from);
         assert_eq!("/bar", r.to);
         assert_eq!(301, r.status);
