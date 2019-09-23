@@ -1,7 +1,7 @@
 extern crate netlify_toml;
 
 #[test]
-fn it_parses_complete_example() {
+fn test_it_parses_complete_example() {
     let io = r#"
 [build]
 command = "make site"
@@ -36,7 +36,7 @@ for = "/foo"
     let context = config.context.unwrap();
     let ref prod = context.get("production").unwrap();
     if let Some(ref cmd) = prod.command {
-       assert_eq!(cmd, &String::from("make prod"));
+        assert_eq!(cmd, &String::from("make prod"));
     }
 
     let headers = config.headers.unwrap();
@@ -46,7 +46,7 @@ for = "/foo"
 }
 
 #[test]
-fn it_loads_context_env() {
+fn test_it_loads_context_env() {
     let io = r#"
 [build]
 environment = {BUILD = "true", OVERRIDE = "1"}
@@ -69,7 +69,7 @@ environment = {BRANCH = "true"}
 }
 
 #[test]
-fn it_fails_to_parse_invalid_headers() {
+fn test_it_fails_to_parse_invalid_headers() {
     let io = r#"
 [[headers]]
 for = "/foo"
@@ -85,7 +85,7 @@ for = "/foo"
 }
 
 #[test]
-fn it_loads_headers_as_array() {
+fn test_it_loads_headers_as_array() {
     let io = r#"
 [[headers]]
 for = "/foo"
@@ -106,7 +106,7 @@ for = "/foo"
 }
 
 #[test]
-fn it_splits_strings_as_array() {
+fn test_it_splits_strings_as_array() {
     let io = r#"
 [[headers]]
 for = "/foo"
@@ -123,11 +123,10 @@ for = "/foo"
     let header = headers.pop().unwrap();
     assert_eq!("/foo", header.path);
     assert_eq!(3, header.headers["Link"].values.len())
-
 }
 
 #[test]
-fn full_redirect_rules() {
+fn test_full_redirect_rules() {
     let io = r#"
 [[redirects]]
   from = "/old-path"
@@ -164,7 +163,7 @@ fn full_redirect_rules() {
 }
 
 #[test]
-fn redirect_rule_with_defaults() {
+fn test_redirect_rule_with_defaults() {
     let io = r#"
 [[redirects]]
   from = "/old-path"
@@ -180,4 +179,29 @@ fn redirect_rule_with_defaults() {
     assert_eq!("/new-path", redirect.to);
     assert_eq!(301, redirect.status);
     assert_eq!(false, redirect.force);
+}
+
+#[test]
+fn test_unique_redirect_conditions() {
+    let io = r#"
+[[redirects]]
+  from = "/old-path"
+  to = "/new-path"
+  status = 302
+  conditions = {Language = ["en", "es", "en"]} 
+    "#;
+
+    let config = netlify_toml::from_str(&io).unwrap();
+    let mut redirects = config.redirects.unwrap();
+    assert_eq!(1, redirects.len());
+
+    let redirect = redirects.pop().unwrap();
+
+    let conditions = redirect.conditions.unwrap();
+    assert_eq!(1, conditions.len());
+
+    let lang = conditions.get("Language").unwrap();
+    assert_eq!(2, lang.len());
+    assert!(lang.contains("en"));
+    assert!(lang.contains("es"));
 }
