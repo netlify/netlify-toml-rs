@@ -145,7 +145,7 @@ fn test_full_redirect_rules() {
 
     let redirect = redirects.pop().unwrap();
     assert_eq!("/old-path", redirect.from);
-    assert_eq!("/new-path", redirect.to);
+    assert_eq!(Some("/new-path".to_string()), redirect.to);
     assert_eq!("API_SIGNATURE_TOKEN", redirect.signed.unwrap());
     assert_eq!(302, redirect.status);
     assert_eq!(true, redirect.force);
@@ -176,7 +176,7 @@ fn test_redirect_rule_with_defaults() {
 
     let redirect = redirects.pop().unwrap();
     assert_eq!("/old-path", redirect.from);
-    assert_eq!("/new-path", redirect.to);
+    assert_eq!(Some("/new-path".to_string()), redirect.to);
     assert_eq!(301, redirect.status);
     assert_eq!(false, redirect.force);
 }

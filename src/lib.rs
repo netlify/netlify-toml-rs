@@ -32,8 +32,10 @@ pub struct Context {
 /// Redirect holds information about a url redirect.
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct Redirect {
+    #[serde(alias = "origin")]
     pub from: String,
-    pub to: String,
+    #[serde(alias = "destination")]
+    pub to: Option<String>,
     #[serde(default = "default_status")]
     pub status: u32,
     #[serde(default)]
@@ -212,7 +214,7 @@ impl Default for Redirect {
     fn default() -> Redirect {
         Redirect {
             from: String::new(),
-            to: String::new(),
+            to: None,
             status: default_status(),
             force: false,
             signed: None,
@@ -220,6 +222,13 @@ impl Default for Redirect {
             query: None,
             headers: None,
         }
+    }
+}
+
+impl fmt::Display for Redirect {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let string = toml::ser::to_string_pretty(&self);
+        write!(f, "{:?}", string)
     }
 }
 
@@ -231,7 +240,7 @@ mod tests {
     fn test_partial_equal() {
         let r = Redirect {
             from: "/foo".to_string(),
-            to: "/bar".to_string(),
+            to: Some("/bar".to_string()),
             status: 301,
             force: false,
             headers: None,
@@ -242,7 +251,7 @@ mod tests {
 
         let r2 = Redirect {
             from: "/foo".to_string(),
-            to: "/bar".to_string(),
+            to: Some("/bar".to_string()),
             status: 301,
             force: false,
             headers: None,
@@ -257,11 +266,11 @@ mod tests {
     fn test_default_redirect() {
         let r = Redirect {
             from: "/foo".to_string(),
-            to: "/bar".to_string(),
+            to: Some("/bar".to_string()),
             ..Default::default()
         };
         assert_eq!("/foo", r.from);
-        assert_eq!("/bar", r.to);
+        assert_eq!(Some("/bar".to_string()), r.to);
         assert_eq!(301, r.status);
     }
 }
