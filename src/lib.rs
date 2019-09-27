@@ -41,6 +41,8 @@ pub struct Redirect {
     #[serde(default)]
     pub force: bool,
     pub headers: Option<HashMap<String, String>>,
+    #[serde(alias = "params")]
+    #[serde(alias = "parameters")]
     pub query: Option<HashMap<String, String>>,
     pub conditions: Option<HashMap<String, HashSet<String>>>,
     pub signed: Option<String>,
