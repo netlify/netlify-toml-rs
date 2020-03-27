@@ -190,7 +190,7 @@ fn test_unique_redirect_conditions() {
   from = "/old-path"
   to = "/new-path"
   status = 302
-  conditions = {Language = ["en", "es", "en"]} 
+  conditions = {Language = ["en", "es", "en"]}
     "#;
 
     let config = netlify_toml::from_str(&io).unwrap();
