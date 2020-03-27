@@ -136,7 +136,8 @@ fn test_full_redirect_rules() {
   query = {path = ":path"}
   conditions = {Language = ["en"], Country = ["US"], Role = ["admin"]}
   headers = {X-From = "Netlify"}
-  signed = "API_SIGNATURE_TOKEN" 
+  signed = "API_SIGNATURE_TOKEN"
+  edge_function = "hello-world.js"
     "#;
 
     let config = netlify_toml::from_str(&io).unwrap();
@@ -149,6 +150,7 @@ fn test_full_redirect_rules() {
     assert_eq!("API_SIGNATURE_TOKEN", redirect.signed.unwrap());
     assert_eq!(302, redirect.status);
     assert_eq!(true, redirect.force);
+    assert_eq!("hello-world.js", redirect.edge_function.unwrap());
 
     let query = redirect.query.unwrap();
     assert_eq!(1, query.len());
