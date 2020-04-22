@@ -71,6 +71,9 @@ pub struct Template {
     pub environment: Option<HashMap<String, String>>,
 }
 
+/// Base crate error type
+pub type Error = toml::de::Error;
+
 /// Parses the contents of a netlify.toml file as a Config structure.
 ///
 /// # Arguments
@@ -87,7 +90,7 @@ pub struct Template {
 ///
 /// let result = netlify_toml::from_str(io);
 /// ```
-pub fn from_str(io: &str) -> Result<Config, toml::de::Error> {
+pub fn from_str(io: &str) -> Result<Config, Error> {
     toml::from_str::<Config>(io)
 }
 
