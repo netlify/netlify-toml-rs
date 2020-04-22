@@ -10,4 +10,4 @@ homepage = "https://github.com/calavera/netlify-toml-rs"
 [dependencies]
 serde = "1.0"
 serde_derive = "1.0"
-toml = "0.4.9"
+toml = "0.5"
