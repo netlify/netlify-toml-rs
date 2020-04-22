@@ -1,6 +1,6 @@
 [package]
 name = "netlify_toml"
-version = "0.2.8"
+version = "0.3.0"
 authors = ["David Calavera <david.calavera@gmail.com>"]
 license = "MIT"
 readme = "README.md"
