@@ -46,6 +46,7 @@ pub struct Redirect {
     pub query: Option<HashMap<String, String>>,
     pub conditions: Option<HashMap<String, HashSet<String>>>,
     pub signed: Option<String>,
+    #[serde(alias = "edge_handler")]
     pub edge_function: Option<String>,
 }
 
