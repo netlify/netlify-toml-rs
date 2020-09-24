@@ -46,8 +46,8 @@ pub struct Redirect {
     pub query: Option<HashMap<String, String>>,
     pub conditions: Option<HashMap<String, HashSet<String>>>,
     pub signed: Option<String>,
-    #[serde(alias = "edge_handler")]
-    pub edge_function: Option<String>,
+    #[serde(alias = "edge-handler")]
+    pub edge_handler: Option<String>,
 }
 
 /// Header holds information to add response headers for a give url.
@@ -228,7 +228,7 @@ impl Default for Redirect {
             conditions: None,
             query: None,
             headers: None,
-            edge_function: None,
+            edge_handler: None,
         }
     }
 }
@@ -255,7 +255,7 @@ mod tests {
             query: None,
             conditions: None,
             signed: None,
-            edge_function: None,
+            edge_handler: None,
         };
 
         let r2 = Redirect {
@@ -267,7 +267,7 @@ mod tests {
             query: None,
             conditions: None,
             signed: None,
-            edge_function: None,
+            edge_handler: None,
         };
         assert_eq!(r, r2)
     }
