@@ -27,6 +27,8 @@ pub struct Context {
     pub command: Option<String>,
     pub functions: Option<String>,
     pub environment: Option<HashMap<String, String>>,
+    #[serde(alias = "edge-handlers")]
+    pub edge_handlers: Option<String>,
 }
 
 /// Redirect holds information about a url redirect.
