@@ -5,6 +5,7 @@ fn test_it_parses_complete_example() {
     let io = r#"
 [build]
 command = "make site"
+edge_handlers = "src/custom-edge-handlers"
 
 [context.production] # this is an alias for build
 command = "make prod"
@@ -32,6 +33,10 @@ for = "/foo"
     let config = netlify_toml::from_str(&io).unwrap();
     let build = config.build.unwrap();
     assert_eq!(build.command.unwrap(), String::from("make site"));
+    assert_eq!(
+        build.edge_handlers.unwrap().as_str(),
+        "src/custom-edge-handlers"
+    );
 
     let context = config.context.unwrap();
     let ref prod = context.get("production").unwrap();
@@ -206,4 +211,18 @@ fn test_unique_redirect_conditions() {
     assert_eq!(2, lang.len());
     assert!(lang.contains("en"));
     assert!(lang.contains("es"));
+}
+
+#[test]
+fn parses_aliased_edge_handlers_name() {
+    let io = r#"
+[build]
+edge-handlers = "src/custom-edge-handlers"
+    "#;
+
+    let config = netlify_toml::from_str(&io).unwrap();
+    assert_eq!(
+        config.build.unwrap().edge_handlers.unwrap(),
+        "src/custom-edge-handlers"
+    );
 }
