@@ -1,38 +1,47 @@
+extern crate indexmap;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 extern crate toml;
 
+use indexmap::IndexMap;
 use serde::de;
 use serde::de::{value, Deserialize, Deserializer, SeqAccess, Visitor};
 use serde::ser::{Serialize, SerializeSeq, Serializer};
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 
-/// Config represents the full configuration within a netlify.toml file.
+/// Config represents the global configuration within a netlify.toml file.
 #[derive(Debug, Serialize, Deserialize, PartialEq, Default)]
 pub struct Config {
-    pub build: Option<Context>,
+    pub build: Option<Build>,
     pub context: Option<HashMap<String, Context>>,
     pub redirects: Option<Vec<Redirect>>,
     pub headers: Option<Vec<Header>>,
     pub template: Option<Template>,
 }
 
-/// Context holds the build variables Netlify uses to build a site before deploying it.
 #[derive(Debug, Serialize, Deserialize, PartialEq, Default)]
 pub struct Context {
+    pub redirects: Option<Vec<Redirect>>,
+    #[serde(flatten)]
+    pub build: Build,
+}
+
+/// Context holds the build variables Netlify uses to build a site before deploying it.
+#[derive(Debug, Serialize, Deserialize, PartialEq, Default)]
+pub struct Build {
     pub base: Option<String>,
     pub publish: Option<String>,
     pub command: Option<String>,
     pub functions: Option<String>,
-    pub environment: Option<HashMap<String, String>>,
+    environment: Option<HashMap<String, String>>,
     #[serde(alias = "edge-handlers")]
     pub edge_handlers: Option<String>,
 }
 
 /// Redirect holds information about a url redirect.
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Redirect {
     #[serde(alias = "origin")]
     pub from: String,
@@ -98,7 +107,7 @@ pub fn from_str(io: &str) -> Result<Config, Error> {
 }
 
 impl Config {
-    /// Returns a HashMap that aggregates all environment variables for
+    /// Return a HashMap that aggregates all environment variables for
     /// a context within a git branch.
     ///
     /// # Arguments
@@ -115,43 +124,102 @@ impl Config {
     /// "#;
     ///
     /// let config = netlify_toml::from_str(io).unwrap();
-    /// let env = config.context_env("deploy-preview", "new-styles");
+    /// let env = config.scoped_env("deploy-preview", "new-styles");
     /// ```
-    pub fn context_env(self, ctx: &str, branch: &str) -> HashMap<String, String> {
+    pub fn scoped_env(self, ctx: &str, branch: &str) -> HashMap<String, String> {
         let mut result = HashMap::<String, String>::new();
 
         // Read the env variables from the global "build" context.
-        if let Some(c) = self.build {
-            if let Some(ref env) = c.environment {
-                for (k, v) in env {
-                    result.insert(k.to_string(), v.to_string());
-                }
+        if let Some(env) = self.build.and_then(|b| b.environment) {
+            for (k, v) in env {
+                result.insert(k.to_string(), v.to_string());
             }
         }
 
-        if let Some(c) = self.context {
-            // Override with default context environment,
-            // like `deploy-preview`, `branch-deploy` or `production`.
-            if let Some(x) = c.get(ctx) {
-                if let Some(ref env) = x.environment {
-                    for (k, v) in env {
-                        result.insert(k.to_string(), v.to_string());
-                    }
-                }
-            }
+        let context = match &self.context {
+            Some(c) => c,
+            None => return result,
+        };
 
-            // Override with branch context environment,
-            // like `deploy-preview`, `branch-deploy` or `production`.
-            if let Some(x) = c.get(branch) {
-                if let Some(ref env) = x.environment {
-                    for (k, v) in env {
-                        result.insert(k.to_string(), v.to_string());
-                    }
-                }
+        if let Some(env) = context.get(ctx).and_then(|x| x.build.environment.as_ref()) {
+            for (k, v) in env {
+                result.insert(k.to_string(), v.to_string());
+            }
+        }
+
+        if let Some(env) = context
+            .get(branch)
+            .and_then(|x| x.build.environment.as_ref())
+        {
+            for (k, v) in env {
+                result.insert(k.to_string(), v.to_string());
             }
         }
 
         result
+    }
+
+    /// Return a list of aggregated redirects for a context within a branch.
+    ///
+    /// If a context includes a redirect that's defined by the global list, the redirect
+    /// is replaced in the global list to preserve this ordering. This match is based on the exact
+    /// comparison of the origin value.
+    ///
+    /// If a context includes a redirect that's not defined by the global list, the redirect
+    /// is appended before any other redirect in the global list to give it a higher precedence.
+    ///
+    /// # Arguments
+    ///
+    /// `ctx` - The context name, for example `deploy-preview`, `branch-deploy` or `production`.
+    /// `branch` - The deploy branch name, for example `make-changes-to-my-site`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let io = r#"
+    /// [[redirects]]
+    ///   from = "/api/*"
+    ///   to = "https://production.api.com/:splat"
+    ///
+    /// [[context.deploy-preview.redirects]]
+    ///   from = "/api/*"
+    ///   to = "https://staging.api.com/:splat"
+    /// "#;
+    ///
+    /// let config = netlify_toml::from_str(io).unwrap();
+    /// let redirects = config.scoped_redirects("deploy-preview", "new-styles").expect("missing redirects");
+    /// assert_eq!(1, redirects.len());
+    /// let dest = redirects.first().and_then(|r| r.to.as_ref()).expect("missing destination");
+    /// assert_eq!("https://staging.api.com/:splat", dest.as_str());
+    /// ```
+    pub fn scoped_redirects(&self, ctx: &str, branch: &str) -> Option<Vec<Redirect>> {
+        let mut aggregated = IndexMap::<String, Redirect>::new();
+
+        if let Some(global) = &self.redirects {
+            for r in global {
+                aggregated.insert(r.from.clone(), r.clone());
+            }
+        }
+
+        if let Some(context) = &self.context {
+            if let Some(ct) = context.get(ctx).and_then(|x| x.redirects.as_ref()) {
+                for r in ct {
+                    aggregated.insert(r.from.clone(), r.clone());
+                }
+            };
+
+            if let Some(ct) = context.get(branch).and_then(|x| x.redirects.as_ref()) {
+                for r in ct {
+                    aggregated.insert(r.from.clone(), r.clone());
+                }
+            };
+        }
+
+        if !aggregated.is_empty() {
+            return Some(aggregated.values().map(|r| r.clone()).collect());
+        }
+
+        None
     }
 }
 

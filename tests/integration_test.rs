@@ -39,10 +39,11 @@ for = "/foo"
     );
 
     let context = config.context.unwrap();
-    let ref prod = context.get("production").unwrap();
-    if let Some(ref cmd) = prod.command {
-        assert_eq!(cmd, &String::from("make prod"));
-    }
+    let prod = context.get("production").unwrap();
+    assert_eq!(
+        "make prod",
+        prod.build.command.as_ref().expect("command").as_str()
+    );
 
     let headers = config.headers.unwrap();
     let header = &headers[0];
@@ -63,8 +64,8 @@ environment = {DP = "true", OVERRIDE = "2"}
 environment = {BRANCH = "true"}
     "#;
 
-    let config = netlify_toml::from_str(&io).unwrap();
-    let env = config.context_env("deploy-preview", "branch");
+    let config = netlify_toml::from_str(&io).expect("failed to parse config");
+    let env = config.scoped_env("deploy-preview", "branch");
     assert!(env.contains_key("BUILD"));
     assert!(env.contains_key("DP"));
     assert!(env.contains_key("BRANCH"));
@@ -145,8 +146,10 @@ fn test_full_redirect_rules() {
   edge-handler = "hello-world"
     "#;
 
-    let config = netlify_toml::from_str(&io).unwrap();
-    let mut redirects = config.redirects.unwrap();
+    let config = netlify_toml::from_str(&io).expect("failed to parse config");
+    let mut redirects = config
+        .scoped_redirects("production", "main")
+        .expect("missing redirects");
     assert_eq!(1, redirects.len());
 
     let redirect = redirects.pop().unwrap();
@@ -177,8 +180,8 @@ fn test_redirect_rule_with_defaults() {
   to = "/new-path"
     "#;
 
-    let config = netlify_toml::from_str(&io).unwrap();
-    let mut redirects = config.redirects.unwrap();
+    let config = netlify_toml::from_str(&io).expect("failed to parse config");
+    let mut redirects = config.scoped_redirects("production", "main").unwrap();
     assert_eq!(1, redirects.len());
 
     let redirect = redirects.pop().unwrap();
@@ -198,8 +201,8 @@ fn test_unique_redirect_conditions() {
   conditions = {Language = ["en", "es", "en"]}
     "#;
 
-    let config = netlify_toml::from_str(&io).unwrap();
-    let mut redirects = config.redirects.unwrap();
+    let config = netlify_toml::from_str(&io).expect("failed to parse config");
+    let mut redirects = config.scoped_redirects("production", "main").unwrap();
     assert_eq!(1, redirects.len());
 
     let redirect = redirects.pop().unwrap();
@@ -220,9 +223,40 @@ fn parses_aliased_edge_handlers_name() {
 edge-handlers = "src/custom-edge-handlers"
     "#;
 
-    let config = netlify_toml::from_str(&io).unwrap();
+    let config = netlify_toml::from_str(&io).expect("failed to parse config");
     assert_eq!(
         config.build.unwrap().edge_handlers.unwrap(),
         "src/custom-edge-handlers"
+    );
+}
+
+#[test]
+fn context_with_redirects() {
+    let io = r#"
+     [[redirects]]
+       from = "/api/*"
+       to = "https://production.api.com/:splat"
+
+     [[redirects]]
+       from = "/*"
+       to = "/blog/:splat"
+
+     [[context.deploy-preview.redirects]]
+       from = "/api/*"
+       to = "https://staging.api.com/:splat"
+     "#;
+
+    let config = netlify_toml::from_str(io).unwrap();
+    let redirects = config
+        .scoped_redirects("deploy-preview", "new-styles")
+        .expect("missing redirects");
+    assert_eq!(2, redirects.len());
+    assert_eq!(
+        "https://staging.api.com/:splat",
+        redirects
+            .first()
+            .and_then(|r| r.to.as_ref())
+            .unwrap()
+            .as_str()
     );
 }
