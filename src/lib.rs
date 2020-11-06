@@ -21,21 +21,23 @@ pub struct Config {
     pub template: Option<Template>,
 }
 
+/// Context combines different settings grouped in a deploy context.
 #[derive(Debug, Serialize, Deserialize, PartialEq, Default)]
 pub struct Context {
     pub redirects: Option<Vec<Redirect>>,
+    pub headers: Option<Vec<Header>>,
     #[serde(flatten)]
     pub build: Build,
 }
 
-/// Context holds the build variables Netlify uses to build a site before deploying it.
+/// Build holds the build variables Netlify uses to build a site before deploying it.
 #[derive(Debug, Serialize, Deserialize, PartialEq, Default)]
 pub struct Build {
     pub base: Option<String>,
     pub publish: Option<String>,
     pub command: Option<String>,
     pub functions: Option<String>,
-    environment: Option<HashMap<String, String>>,
+    pub environment: Option<HashMap<String, String>>,
     #[serde(alias = "edge-handlers")]
     pub edge_handlers: Option<String>,
 }
@@ -62,7 +64,7 @@ pub struct Redirect {
 }
 
 /// Header holds information to add response headers for a give url.
-#[derive(Debug, Serialize, Deserialize, PartialEq, Default)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Default)]
 pub struct Header {
     #[serde(rename = "for")]
     pub path: String,
@@ -70,7 +72,7 @@ pub struct Header {
     pub headers: HashMap<String, HeaderValues>,
 }
 
-#[derive(Debug, PartialEq, Default)]
+#[derive(Clone, Debug, PartialEq, Default)]
 pub struct HeaderValues {
     pub values: Vec<String>,
 }
@@ -193,33 +195,137 @@ impl Config {
     /// assert_eq!("https://staging.api.com/:splat", dest.as_str());
     /// ```
     pub fn scoped_redirects(&self, ctx: &str, branch: &str) -> Option<Vec<Redirect>> {
-        let mut aggregated = IndexMap::<String, Redirect>::new();
+        let context = match &self.context {
+            Some(c) => c,
+            None => return self.redirects.clone(),
+        };
 
+        let mut global_index = IndexMap::<String, Redirect>::new();
         if let Some(global) = &self.redirects {
             for r in global {
-                aggregated.insert(r.from.clone(), r.clone());
+                global_index.insert(r.from.clone(), r.clone());
             }
         }
 
-        if let Some(context) = &self.context {
-            if let Some(ct) = context.get(ctx).and_then(|x| x.redirects.as_ref()) {
-                for r in ct {
-                    aggregated.insert(r.from.clone(), r.clone());
+        if let Some(ct) = context.get(ctx).and_then(|x| x.redirects.as_ref()) {
+            for r in ct {
+                if global_index.contains_key(&r.from) {
+                    global_index.insert(r.from.clone(), r.clone());
+                } else {
+                    let mut swap = IndexMap::<String, Redirect>::new();
+                    swap.insert(r.from.clone(), r.clone());
+                    swap.extend(global_index);
+                    global_index = swap;
                 }
-            };
+            }
+        };
 
-            if let Some(ct) = context.get(branch).and_then(|x| x.redirects.as_ref()) {
-                for r in ct {
-                    aggregated.insert(r.from.clone(), r.clone());
+        if let Some(ct) = context.get(branch).and_then(|x| x.redirects.as_ref()) {
+            for r in ct {
+                if global_index.contains_key(&r.from) {
+                    global_index.insert(r.from.clone(), r.clone());
+                } else {
+                    let mut swap = IndexMap::<String, Redirect>::new();
+                    swap.insert(r.from.clone(), r.clone());
+                    swap.extend(global_index);
+                    global_index = swap;
                 }
-            };
+            }
+        };
+
+        if !global_index.is_empty() {
+            Some(global_index.values().map(|r| r.clone()).collect())
+        } else {
+            None
+        }
+    }
+
+    /// Return a list of aggregated header rules for a context within a branch.
+    ///
+    /// If a context includes a header rule that's defined by the global list, the header rule
+    /// is replaced in the global list to preserve this ordering. This match is based on the exact
+    /// comparison of the origin value.
+    ///
+    /// If a context includes a header rule that's not defined by the global list, the header rule
+    /// is appended before any other header rules in the global list to give it a higher precedence.
+    ///
+    /// # Arguments
+    ///
+    /// `ctx` - The context name, for example `deploy-preview`, `branch-deploy` or `production`.
+    /// `branch` - The deploy branch name, for example `make-changes-to-my-site`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    ///     let io = r#"
+    ///     [[headers]]
+    ///     for = "/foo"
+    ///     values = {X-Foo = "Bar, Baz, Qux"}
+    ///
+    ///     [[headers]]
+    ///     for = "/bar"
+    ///     values = {X-Foo = "Bar, Baz, Qux"}
+    ///
+    ///     [[context.deploy-preview.headers]]
+    ///     for = "/foo"
+    ///     values = {X-BAR = "QUUX"}
+    /// "#;
+    ///
+    ///     let config = netlify_toml::from_str(&io).unwrap();
+    ///     let headers = config
+    ///         .scoped_headers("deploy-preview", "new-styles")
+    ///         .expect("missing headers");
+    ///     assert_eq!(2, headers.len());
+    ///
+    ///     let header = headers.first().unwrap();
+    ///     assert_eq!("/foo", header.path);
+    ///     assert!(header.headers.contains_key("X-BAR"));
+    ///     assert!(!header.headers.contains_key("X-Foo"));
+    /// ```
+    pub fn scoped_headers(&self, ctx: &str, branch: &str) -> Option<Vec<Header>> {
+        let context = match &self.context {
+            Some(c) => c,
+            None => return self.headers.clone(),
+        };
+
+        let mut global_index = IndexMap::<String, Header>::new();
+        if let Some(global) = &self.headers {
+            for r in global {
+                global_index.insert(r.path.clone(), r.clone());
+            }
         }
 
-        if !aggregated.is_empty() {
-            return Some(aggregated.values().map(|r| r.clone()).collect());
-        }
+        if let Some(ct) = context.get(ctx).and_then(|x| x.headers.as_ref()) {
+            for r in ct {
+                if global_index.contains_key(&r.path) {
+                    global_index.insert(r.path.clone(), r.clone());
+                } else {
+                    let mut swap = IndexMap::<String, Header>::new();
+                    swap.insert(r.path.clone(), r.clone());
+                    swap.extend(global_index);
+                    global_index = swap;
+                }
+            }
+        };
 
-        None
+        if let Some(ct) = context.get(branch).and_then(|x| x.headers.as_ref()) {
+            for r in ct {
+                if global_index.contains_key(&r.path) {
+                    global_index.insert(r.path.clone(), r.clone());
+                } else {
+                    let mut swap = IndexMap::<String, Header>::new();
+                    swap.insert(r.path.clone(), r.clone());
+                    swap.extend(global_index);
+                    global_index = swap;
+                }
+            }
+        };
+
+        if !global_index.is_empty() {
+            Some(global_index.values().map(|r| r.clone()).collect())
+        } else {
+            None
+        }
     }
 }
 

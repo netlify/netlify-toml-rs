@@ -217,7 +217,7 @@ fn test_unique_redirect_conditions() {
 }
 
 #[test]
-fn parses_aliased_edge_handlers_name() {
+fn test_parses_aliased_edge_handlers_name() {
     let io = r#"
 [build]
 edge-handlers = "src/custom-edge-handlers"
@@ -231,7 +231,7 @@ edge-handlers = "src/custom-edge-handlers"
 }
 
 #[test]
-fn context_with_redirects() {
+fn test_scoped_redirects() {
     let io = r#"
      [[redirects]]
        from = "/api/*"
@@ -259,4 +259,147 @@ fn context_with_redirects() {
             .unwrap()
             .as_str()
     );
+}
+
+#[test]
+fn test_scoped_redirects_append() {
+    let io = r#"
+     [[redirects]]
+       from = "/api/*"
+       to = "https://production.api.com/:splat"
+
+     [[redirects]]
+       from = "/*"
+       to = "/blog/:splat"
+
+     [[context.deploy-preview.redirects]]
+       from = "/new-api/*"
+       to = "https://development.api.com/:splat"
+     "#;
+
+    let config = netlify_toml::from_str(io).unwrap();
+    let redirects = config
+        .scoped_redirects("deploy-preview", "new-styles")
+        .expect("missing redirects");
+    assert_eq!(3, redirects.len());
+    assert_eq!(
+        "https://development.api.com/:splat",
+        redirects
+            .first()
+            .and_then(|r| r.to.as_ref())
+            .unwrap()
+            .as_str()
+    );
+    assert_eq!(
+        "/blog/:splat",
+        redirects
+            .last()
+            .and_then(|r| r.to.as_ref())
+            .unwrap()
+            .as_str()
+    );
+}
+
+#[test]
+fn test_scoped_redirects_without_globals() {
+    let io = r#"
+     [[context.deploy-preview.redirects]]
+       from = "/new-api/*"
+       to = "https://development.api.com/:splat"
+     "#;
+
+    let config = netlify_toml::from_str(io).unwrap();
+    let redirects = config
+        .scoped_redirects("deploy-preview", "new-styles")
+        .expect("missing redirects");
+    assert_eq!(1, redirects.len());
+    assert_eq!(
+        "https://development.api.com/:splat",
+        redirects
+            .first()
+            .and_then(|r| r.to.as_ref())
+            .unwrap()
+            .as_str()
+    );
+}
+
+#[test]
+fn test_scoped_headers() {
+    let io = r#"
+    [[headers]]
+    for = "/foo"
+    values = {X-Foo = "Bar, Baz, Qux"}
+
+    [[headers]]
+    for = "/bar"
+    values = {X-Foo = "Bar, Baz, Qux"}
+
+    [[context.deploy-preview.headers]]
+    for = "/foo"
+    values = {X-BAR = "QUUX"}
+"#;
+
+    let config = netlify_toml::from_str(&io).unwrap();
+    let headers = config
+        .scoped_headers("deploy-preview", "new-styles")
+        .expect("missing headers");
+    assert_eq!(2, headers.len());
+
+    let header = headers.first().unwrap();
+    assert_eq!("/foo", header.path);
+    assert!(header.headers.contains_key("X-BAR"));
+    assert!(!header.headers.contains_key("X-Foo"));
+
+    let header = headers.last().unwrap();
+    assert_eq!("/bar", header.path);
+}
+
+#[test]
+fn test_scoped_headers_append() {
+    let io = r#"
+    [[headers]]
+    for = "/foo"
+    values = {X-Foo = "Bar, Baz, Qux"}
+
+    [[headers]]
+    for = "/bar"
+    values = {X-Foo = "Bar, Baz, Qux"}
+
+    [[context.deploy-preview.headers]]
+    for = "/baz"
+    values = {X-BAZ = "QUUX"}
+"#;
+
+    let config = netlify_toml::from_str(&io).unwrap();
+    let headers = config
+        .scoped_headers("deploy-preview", "new-styles")
+        .expect("missing headers");
+    assert_eq!(3, headers.len());
+
+    let header = headers.first().unwrap();
+    assert_eq!("/baz", header.path);
+    assert!(header.headers.contains_key("X-BAZ"));
+
+    let header = headers.last().unwrap();
+    assert_eq!("/bar", header.path);
+}
+
+#[test]
+fn test_scoped_headers_without_global() {
+    let io = r#"
+    [[context.deploy-preview.headers]]
+    for = "/foo"
+    values = {X-BAR = "QUUX"}
+"#;
+
+    let config = netlify_toml::from_str(&io).unwrap();
+    let headers = config
+        .scoped_headers("deploy-preview", "new-styles")
+        .expect("missing headers");
+    assert_eq!(1, headers.len());
+
+    let header = headers.first().unwrap();
+    assert_eq!("/foo", header.path);
+    assert!(header.headers.contains_key("X-BAR"));
+    assert!(!header.headers.contains_key("X-Foo"));
 }
