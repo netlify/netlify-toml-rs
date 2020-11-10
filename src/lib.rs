@@ -129,13 +129,11 @@ impl Config {
     /// let env = config.scoped_env("deploy-preview", "new-styles");
     /// ```
     pub fn scoped_env(self, ctx: &str, branch: &str) -> HashMap<String, String> {
-        let mut result = HashMap::<String, String>::new();
+        let mut result = HashMap::new();
 
         // Read the env variables from the global "build" context.
         if let Some(env) = self.build.and_then(|b| b.environment) {
-            for (k, v) in env {
-                result.insert(k.to_string(), v.to_string());
-            }
+            result.extend(env);
         }
 
         let context = match &self.context {
@@ -143,20 +141,15 @@ impl Config {
             None => return result,
         };
 
-        if let Some(env) = context.get(ctx).and_then(|x| x.build.environment.as_ref()) {
-            for (k, v) in env {
-                result.insert(k.to_string(), v.to_string());
-            }
-        }
+        context
+            .get(ctx)
+            .and_then(|x| x.build.environment.clone())
+            .and_then(|env| Some(result.extend(env)));
 
-        if let Some(env) = context
+        context
             .get(branch)
-            .and_then(|x| x.build.environment.as_ref())
-        {
-            for (k, v) in env {
-                result.insert(k.to_string(), v.to_string());
-            }
-        }
+            .and_then(|x| x.build.environment.clone())
+            .and_then(|env| Some(result.extend(env)));
 
         result
     }
@@ -200,7 +193,7 @@ impl Config {
             None => return self.redirects.clone(),
         };
 
-        let mut global_index = IndexMap::<String, Redirect>::new();
+        let mut global_index = IndexMap::new();
         if let Some(global) = &self.redirects {
             for r in global {
                 global_index.insert(r.from.clone(), r.clone());
@@ -288,7 +281,7 @@ impl Config {
             None => return self.headers.clone(),
         };
 
-        let mut global_index = IndexMap::<String, Header>::new();
+        let mut global_index = IndexMap::new();
         if let Some(global) = &self.headers {
             for r in global {
                 global_index.insert(r.path.clone(), r.clone());
