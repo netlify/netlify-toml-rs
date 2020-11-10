@@ -1,7 +1,12 @@
 [package]
 name = "netlify_toml"
-version = "0.3.1"
-authors = ["David Calavera <david.calavera@gmail.com>"]
+version = "0.3.3"
+authors = [
+  "David Calavera <david@netlify.com>",
+  "George Hahn <george.hahn@netlify.com>",
+  "Marcus Weiner <marcus@netlify.com>",
+  "Moritz Gunz <moritz.gunz@netlify.com>"
+]
 license = "MIT"
 readme = "README.md"
 description = "netlify_toml is a parser for netlify.toml files"
