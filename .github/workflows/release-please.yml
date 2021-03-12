@@ -1,0 +1,35 @@
+on:
+  push:
+    branches: [main]
+
+name: Release Please
+
+jobs:
+  crates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: google-github-actions/release-please-action@v2
+        id: release
+        with:
+          token: ${{ secrets.PKG_RELEASE_TOKEN }}
+          monorepo-tags: true
+          release-type: rust
+          path: .
+          package-name: netlify_toml
+
+      - uses: actions/checkout@v2
+        if: ${{ steps.release.outputs.release_created }}
+
+      - name: Use sccache with Google Cloud Storage
+        if: ${{ steps.release.outputs.release_created }}
+        uses: netlify/private-action-loader@support-post
+        with:
+          pal-repo-token: ${{ secrets.PKG_RELEASE_TOKEN }}
+          pal-repo-name: netlify/sccache-action@v1
+
+          github-token: ${{ secrets.PKG_RELEASE_TOKEN }}
+          service-account-key: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Publish crate
+        if: ${{ steps.release.outputs.release_created }}
+        run: cargo publish --token ${{ secrets.CRATES_IO_TOKEN }}
