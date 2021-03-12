@@ -12,9 +12,7 @@ jobs:
         id: release
         with:
           token: ${{ secrets.PKG_RELEASE_TOKEN }}
-          monorepo-tags: true
           release-type: rust
-          path: .
           package-name: netlify_toml
 
       - uses: actions/checkout@v2
