@@ -81,7 +81,12 @@ pub struct Template {
 /// A mount of an edge handler under a specific path.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct EdgeHandler {
+    /// The name of the edge handler to run.
     pub handler: String,
+    /// The mount path of the edge handler.
+    ///
+    /// The system will select the first path that matches from top to bottom,
+    /// if multiple apply.
     #[serde(alias = "for")]
     pub path: String,
 }
