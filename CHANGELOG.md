@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://www.github.com/netlify/netlify-toml-rs/compare/v0.4.0...v0.5.0) (2021-03-12)
+
+
+### Features
+
+* Trigger release-please ([#23](https://www.github.com/netlify/netlify-toml-rs/issues/23)) ([ef6379c](https://www.github.com/netlify/netlify-toml-rs/commit/ef6379cc0f16750777dad1ae804cfc548a6912d5))
+
 ## [0.4.0](https://www.github.com/netlify/netlify-toml-rs/compare/v0.3.2...v0.4.0) (2021-03-12)
 
 
