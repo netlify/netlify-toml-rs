@@ -227,36 +227,41 @@ edge-handlers = "src/custom-edge-handlers"
 
 #[test]
 fn parses_edge_handlers_definitions() {
-    let io = r#"
-[[edgeHandlers]]
+    for key in &["edge-handlers", "edge_handlers", "edgeHandlers"] {
+        let io = format!(
+            r#"
+[[{0}]]
 path = "/api/:category/:post"
 handler = "apiGateway4"
 
-[[edgeHandlers]]
+[[{0}]]
 path = "/foo/bar/baz"
 handler = "apiGateway3"
 
-[[edgeHandlers]]
+[[{0}]]
 path = "/foo/bar/*"
 handler = "apiGateway2"
 
-[[edgeHandlers]]
+[[{0}]]
 path = "/foo/*"
 handler = "apiGateway1"
 
-[[edgeHandlers]]
+[[{0}]]
 path = "/*"
 handler = "apiGateway0"
-    "#;
+        "#,
+            key
+        );
 
-    let config = netlify_toml::from_str(&io).unwrap();
+        let config = netlify_toml::from_str(&io).unwrap();
 
-    assert_eq!(config.edge_handlers[0].path, "/api/:category/:post");
-    assert_eq!(config.edge_handlers[0].handler, "apiGateway4");
+        assert_eq!(config.edge_handlers[0].path, "/api/:category/:post");
+        assert_eq!(config.edge_handlers[0].handler, "apiGateway4");
 
-    assert_eq!(config.edge_handlers[2].path, "/foo/bar/*");
-    assert_eq!(config.edge_handlers[2].handler, "apiGateway2");
+        assert_eq!(config.edge_handlers[2].path, "/foo/bar/*");
+        assert_eq!(config.edge_handlers[2].handler, "apiGateway2");
 
-    assert_eq!(config.edge_handlers[4].path, "/*");
-    assert_eq!(config.edge_handlers[4].handler, "apiGateway0");
+        assert_eq!(config.edge_handlers[4].path, "/*");
+        assert_eq!(config.edge_handlers[4].handler, "apiGateway0");
+    }
 }
