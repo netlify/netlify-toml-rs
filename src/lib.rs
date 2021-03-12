@@ -50,8 +50,7 @@ pub struct Redirect {
     #[serde(default)]
     pub force: bool,
     pub headers: Option<HashMap<String, String>>,
-    #[serde(alias = "params")]
-    #[serde(alias = "parameters")]
+    #[serde(alias = "params", alias = "parameters")]
     pub query: Option<HashMap<String, String>>,
     pub conditions: Option<HashMap<String, HashSet<String>>>,
     pub signed: Option<String>,
@@ -102,8 +101,9 @@ pub struct EdgeHandler {
 ///
 /// let result = netlify_toml::from_str(io);
 /// ```
+#[inline]
 pub fn from_str(io: &str) -> Result<Config, Error> {
-    toml::from_str::<Config>(io)
+    toml::from_str(io)
 }
 
 impl Config {
@@ -127,7 +127,7 @@ impl Config {
     /// let env = config.context_env("deploy-preview", "new-styles");
     /// ```
     pub fn context_env(self, ctx: &str, branch: &str) -> HashMap<String, String> {
-        let mut result = HashMap::<String, String>::new();
+        let mut result = HashMap::new();
 
         // Read the env variables from the global "build" context.
         if let Some(c) = self.build {
