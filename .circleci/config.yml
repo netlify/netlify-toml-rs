@@ -15,27 +15,23 @@ jobs:
     executor: rust/medium
     steps:
       - checkout
-      - rust/do:
-          steps:
-            - run:
-                name: Check formatting
-                command: cargo fmt -- --check
-            - run:
-                name: Lint with clippy
-                environment:
-                  RUSTFLAGS: -Dwarnings
-                command: cargo clippy --all-features -- -D warnings
+      - run:
+          name: Check formatting
+          command: cargo fmt -- --check
+      - run:
+          name: Lint with clippy
+          environment:
+            RUSTFLAGS: -Dwarnings
+          command: cargo clippy --all-features -- -D warnings
 
   test:
     description: Run unit tests
     executor: rust/medium
     steps:
       - checkout
-      - rust/do:
-          steps:
-            - run:
-                name: Run unit tests
-                command: cargo test --all-features
+      - run:
+          name: Run unit tests
+          command: cargo test --all-features
 
 orbs:
   rust:
@@ -48,34 +44,3 @@ orbs:
               username: _json_key
               password: $GCLOUD_SERVICE_KEY
         resource_class: medium
-    commands:
-      do:
-        description: Sets up sccache caching
-        parameters:
-          steps:
-            type: steps
-            description: Rust compilation steps to run
-        steps:
-          - run:
-              name: Start sccache
-              command: |
-                sccache --version
-                echo $GCP_SA_KEY | base64 -d > /tmp/gcs_sa_key
-                export SCCACHE_GCS_BUCKET="netlify-rust-cxx-sccache"
-                export SCCACHE_GCS_KEY_PATH=/tmp/gcs_sa_key
-                export SCCACHE_GCS_RW_MODE="READ_WRITE"
-                export SCCACHE_IDLE_TIMEOUT="0"
-                export RUST_LOG="sccache=info"
-                export SCCACHE_ERROR_LOG=/tmp/sccache.log
-                export SCCACHE_LOG="debug"
-
-                sccache --start-server
-
-                echo "export RUSTC_WRAPPER=sccache" >> $BASH_ENV
-                echo "export CARGO_INCREMENTAL=0" >> $BASH_ENV
-          - steps: << parameters.steps >>
-          - run:
-              name: Stop sccache
-              command: |
-                sccache --stop-server
-                cat /tmp/sccache.log | grep -F "'403" | head || true
