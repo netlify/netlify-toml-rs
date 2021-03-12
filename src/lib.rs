@@ -1,13 +1,13 @@
-extern crate serde;
-#[macro_use]
-extern crate serde_derive;
-extern crate toml;
-
-use serde::de;
-use serde::de::{value, Deserialize, Deserializer, SeqAccess, Visitor};
-use serde::ser::{Serialize, SerializeSeq, Serializer};
-use std::collections::{HashMap, HashSet};
-use std::fmt;
+use serde::{
+    de::{self, value, Deserializer, SeqAccess, Visitor},
+    ser::{SerializeSeq, Serializer},
+    Deserialize, Serialize,
+};
+use std::{
+    collections::{HashMap, HashSet},
+    fmt,
+};
+use toml::de::Error;
 
 /// Config represents the full configuration within a netlify.toml file.
 #[derive(Debug, Serialize, Deserialize, PartialEq, Default)]
@@ -17,6 +17,13 @@ pub struct Config {
     pub redirects: Option<Vec<Redirect>>,
     pub headers: Option<Vec<Header>>,
     pub template: Option<Template>,
+    #[serde(
+        alias = "edgeHandlers",
+        alias = "edge-handlers",
+        alias = "edge_handlers",
+        default
+    )]
+    pub edge_handlers: Vec<EdgeHandler>,
 }
 
 /// Context holds the build variables Netlify uses to build a site before deploying it.
@@ -27,7 +34,7 @@ pub struct Context {
     pub command: Option<String>,
     pub functions: Option<String>,
     pub environment: Option<HashMap<String, String>>,
-    #[serde(alias = "edge-handlers")]
+    #[serde(alias = "edge-handlers", alias = "edgeHandlers")]
     pub edge_handlers: Option<String>,
 }
 
@@ -48,8 +55,6 @@ pub struct Redirect {
     pub query: Option<HashMap<String, String>>,
     pub conditions: Option<HashMap<String, HashSet<String>>>,
     pub signed: Option<String>,
-    #[serde(alias = "edge-handler")]
-    pub edge_handler: Option<String>,
 }
 
 /// Header holds information to add response headers for a give url.
@@ -74,8 +79,13 @@ pub struct Template {
     pub environment: Option<HashMap<String, String>>,
 }
 
-/// Base crate error type
-pub type Error = toml::de::Error;
+/// A mount of an edge handler under a specific path.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct EdgeHandler {
+    pub handler: String,
+    #[serde(alias = "for")]
+    pub path: String,
+}
 
 /// Parses the contents of a netlify.toml file as a Config structure.
 ///
@@ -230,7 +240,6 @@ impl Default for Redirect {
             conditions: None,
             query: None,
             headers: None,
-            edge_handler: None,
         }
     }
 }
@@ -257,7 +266,6 @@ mod tests {
             query: None,
             conditions: None,
             signed: None,
-            edge_handler: None,
         };
 
         let r2 = Redirect {
@@ -269,7 +277,6 @@ mod tests {
             query: None,
             conditions: None,
             signed: None,
-            edge_handler: None,
         };
         assert_eq!(r, r2)
     }

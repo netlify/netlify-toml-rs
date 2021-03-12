@@ -142,7 +142,6 @@ fn test_full_redirect_rules() {
   conditions = {Language = ["en"], Country = ["US"], Role = ["admin"]}
   headers = {X-From = "Netlify"}
   signed = "API_SIGNATURE_TOKEN"
-  edge-handler = "hello-world"
     "#;
 
     let config = netlify_toml::from_str(&io).unwrap();
@@ -155,7 +154,6 @@ fn test_full_redirect_rules() {
     assert_eq!("API_SIGNATURE_TOKEN", redirect.signed.unwrap());
     assert_eq!(302, redirect.status);
     assert_eq!(true, redirect.force);
-    assert_eq!("hello-world", redirect.edge_handler.unwrap());
 
     let query = redirect.query.unwrap();
     assert_eq!(1, query.len());
@@ -225,4 +223,45 @@ edge-handlers = "src/custom-edge-handlers"
         config.build.unwrap().edge_handlers.unwrap(),
         "src/custom-edge-handlers"
     );
+}
+
+#[test]
+fn parses_edge_handlers_definitions() {
+    for key in &["edge-handlers", "edge_handlers", "edgeHandlers"] {
+        let io = format!(
+            r#"
+[[{0}]]
+path = "/api/:category/:post"
+handler = "apiGateway4"
+
+[[{0}]]
+path = "/foo/bar/baz"
+handler = "apiGateway3"
+
+[[{0}]]
+path = "/foo/bar/*"
+handler = "apiGateway2"
+
+[[{0}]]
+for = "/foo/*"
+handler = "apiGateway1"
+
+[[{0}]]
+path = "/*"
+handler = "apiGateway0"
+        "#,
+            key
+        );
+
+        let config = netlify_toml::from_str(&io).unwrap();
+
+        assert_eq!(config.edge_handlers[0].path, "/api/:category/:post");
+        assert_eq!(config.edge_handlers[0].handler, "apiGateway4");
+
+        assert_eq!(config.edge_handlers[2].path, "/foo/bar/*");
+        assert_eq!(config.edge_handlers[2].handler, "apiGateway2");
+
+        assert_eq!(config.edge_handlers[4].path, "/*");
+        assert_eq!(config.edge_handlers[4].handler, "apiGateway0");
+    }
 }
