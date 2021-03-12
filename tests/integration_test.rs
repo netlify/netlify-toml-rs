@@ -39,10 +39,11 @@ for = "/foo"
     );
 
     let context = config.context.unwrap();
-    let ref prod = context.get("production").unwrap();
-    if let Some(ref cmd) = prod.command {
-        assert_eq!(cmd, &String::from("make prod"));
-    }
+    let prod = context.get("production").unwrap();
+    assert_eq!(
+        "make prod",
+        prod.build.command.as_ref().expect("command").as_str()
+    );
 
     let headers = config.headers.unwrap();
     let header = &headers[0];
@@ -63,8 +64,8 @@ environment = {DP = "true", OVERRIDE = "2"}
 environment = {BRANCH = "true"}
     "#;
 
-    let config = netlify_toml::from_str(&io).unwrap();
-    let env = config.context_env("deploy-preview", "branch");
+    let config = netlify_toml::from_str(&io).expect("failed to parse config");
+    let env = config.scoped_env("deploy-preview", "branch");
     assert!(env.contains_key("BUILD"));
     assert!(env.contains_key("DP"));
     assert!(env.contains_key("BRANCH"));
@@ -145,8 +146,10 @@ fn test_full_redirect_rules() {
   edge-handler = "hello-world"
     "#;
 
-    let config = netlify_toml::from_str(&io).unwrap();
-    let mut redirects = config.redirects.unwrap();
+    let config = netlify_toml::from_str(&io).expect("failed to parse config");
+    let mut redirects = config
+        .scoped_redirects("production", "main")
+        .expect("missing redirects");
     assert_eq!(1, redirects.len());
 
     let redirect = redirects.pop().unwrap();
@@ -177,8 +180,8 @@ fn test_redirect_rule_with_defaults() {
   to = "/new-path"
     "#;
 
-    let config = netlify_toml::from_str(&io).unwrap();
-    let mut redirects = config.redirects.unwrap();
+    let config = netlify_toml::from_str(&io).expect("failed to parse config");
+    let mut redirects = config.scoped_redirects("production", "main").unwrap();
     assert_eq!(1, redirects.len());
 
     let redirect = redirects.pop().unwrap();
@@ -198,8 +201,8 @@ fn test_unique_redirect_conditions() {
   conditions = {Language = ["en", "es", "en"]}
     "#;
 
-    let config = netlify_toml::from_str(&io).unwrap();
-    let mut redirects = config.redirects.unwrap();
+    let config = netlify_toml::from_str(&io).expect("failed to parse config");
+    let mut redirects = config.scoped_redirects("production", "main").unwrap();
     assert_eq!(1, redirects.len());
 
     let redirect = redirects.pop().unwrap();
@@ -214,15 +217,189 @@ fn test_unique_redirect_conditions() {
 }
 
 #[test]
-fn parses_aliased_edge_handlers_name() {
+fn test_parses_aliased_edge_handlers_name() {
     let io = r#"
 [build]
 edge-handlers = "src/custom-edge-handlers"
     "#;
 
-    let config = netlify_toml::from_str(&io).unwrap();
+    let config = netlify_toml::from_str(&io).expect("failed to parse config");
     assert_eq!(
         config.build.unwrap().edge_handlers.unwrap(),
         "src/custom-edge-handlers"
     );
+}
+
+#[test]
+fn test_scoped_redirects() {
+    let io = r#"
+     [[redirects]]
+       from = "/api/*"
+       to = "https://production.api.com/:splat"
+
+     [[redirects]]
+       from = "/*"
+       to = "/blog/:splat"
+
+     [[context.deploy-preview.redirects]]
+       from = "/api/*"
+       to = "https://staging.api.com/:splat"
+     "#;
+
+    let config = netlify_toml::from_str(io).unwrap();
+    let redirects = config
+        .scoped_redirects("deploy-preview", "new-styles")
+        .expect("missing redirects");
+    assert_eq!(2, redirects.len());
+    assert_eq!(
+        "https://staging.api.com/:splat",
+        redirects
+            .first()
+            .and_then(|r| r.to.as_ref())
+            .unwrap()
+            .as_str()
+    );
+}
+
+#[test]
+fn test_scoped_redirects_append() {
+    let io = r#"
+     [[redirects]]
+       from = "/api/*"
+       to = "https://production.api.com/:splat"
+
+     [[redirects]]
+       from = "/*"
+       to = "/blog/:splat"
+
+     [[context.deploy-preview.redirects]]
+       from = "/new-api/*"
+       to = "https://development.api.com/:splat"
+     "#;
+
+    let config = netlify_toml::from_str(io).unwrap();
+    let redirects = config
+        .scoped_redirects("deploy-preview", "new-styles")
+        .expect("missing redirects");
+    assert_eq!(3, redirects.len());
+    assert_eq!(
+        "https://development.api.com/:splat",
+        redirects
+            .first()
+            .and_then(|r| r.to.as_ref())
+            .unwrap()
+            .as_str()
+    );
+    assert_eq!(
+        "/blog/:splat",
+        redirects
+            .last()
+            .and_then(|r| r.to.as_ref())
+            .unwrap()
+            .as_str()
+    );
+}
+
+#[test]
+fn test_scoped_redirects_without_globals() {
+    let io = r#"
+     [[context.deploy-preview.redirects]]
+       from = "/new-api/*"
+       to = "https://development.api.com/:splat"
+     "#;
+
+    let config = netlify_toml::from_str(io).unwrap();
+    let redirects = config
+        .scoped_redirects("deploy-preview", "new-styles")
+        .expect("missing redirects");
+    assert_eq!(1, redirects.len());
+    assert_eq!(
+        "https://development.api.com/:splat",
+        redirects
+            .first()
+            .and_then(|r| r.to.as_ref())
+            .unwrap()
+            .as_str()
+    );
+}
+
+#[test]
+fn test_scoped_headers() {
+    let io = r#"
+    [[headers]]
+    for = "/foo"
+    values = {X-Foo = "Bar, Baz, Qux"}
+
+    [[headers]]
+    for = "/bar"
+    values = {X-Foo = "Bar, Baz, Qux"}
+
+    [[context.deploy-preview.headers]]
+    for = "/foo"
+    values = {X-BAR = "QUUX"}
+"#;
+
+    let config = netlify_toml::from_str(&io).unwrap();
+    let headers = config
+        .scoped_headers("deploy-preview", "new-styles")
+        .expect("missing headers");
+    assert_eq!(2, headers.len());
+
+    let header = headers.first().unwrap();
+    assert_eq!("/foo", header.path);
+    assert!(header.headers.contains_key("X-BAR"));
+    assert!(!header.headers.contains_key("X-Foo"));
+
+    let header = headers.last().unwrap();
+    assert_eq!("/bar", header.path);
+}
+
+#[test]
+fn test_scoped_headers_append() {
+    let io = r#"
+    [[headers]]
+    for = "/foo"
+    values = {X-Foo = "Bar, Baz, Qux"}
+
+    [[headers]]
+    for = "/bar"
+    values = {X-Foo = "Bar, Baz, Qux"}
+
+    [[context.deploy-preview.headers]]
+    for = "/baz"
+    values = {X-BAZ = "QUUX"}
+"#;
+
+    let config = netlify_toml::from_str(&io).unwrap();
+    let headers = config
+        .scoped_headers("deploy-preview", "new-styles")
+        .expect("missing headers");
+    assert_eq!(3, headers.len());
+
+    let header = headers.first().unwrap();
+    assert_eq!("/baz", header.path);
+    assert!(header.headers.contains_key("X-BAZ"));
+
+    let header = headers.last().unwrap();
+    assert_eq!("/bar", header.path);
+}
+
+#[test]
+fn test_scoped_headers_without_global() {
+    let io = r#"
+    [[context.deploy-preview.headers]]
+    for = "/foo"
+    values = {X-BAR = "QUUX"}
+"#;
+
+    let config = netlify_toml::from_str(&io).unwrap();
+    let headers = config
+        .scoped_headers("deploy-preview", "new-styles")
+        .expect("missing headers");
+    assert_eq!(1, headers.len());
+
+    let header = headers.first().unwrap();
+    assert_eq!("/foo", header.path);
+    assert!(header.headers.contains_key("X-BAR"));
+    assert!(!header.headers.contains_key("X-Foo"));
 }

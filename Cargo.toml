@@ -13,6 +13,7 @@ description = "netlify_toml is a parser for netlify.toml files"
 homepage = "https://github.com/calavera/netlify-toml-rs"
 
 [dependencies]
+indexmap = "1.6"
 serde = "1.0"
 serde_derive = "1.0"
 toml = "0.5"
