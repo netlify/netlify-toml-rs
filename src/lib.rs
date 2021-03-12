@@ -83,6 +83,7 @@ pub struct Template {
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct EdgeHandler {
     pub handler: String,
+    #[serde(alias = "for")]
     pub path: String,
 }
 

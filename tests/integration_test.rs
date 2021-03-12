@@ -243,7 +243,7 @@ path = "/foo/bar/*"
 handler = "apiGateway2"
 
 [[{0}]]
-path = "/foo/*"
+for = "/foo/*"
 handler = "apiGateway1"
 
 [[{0}]]
