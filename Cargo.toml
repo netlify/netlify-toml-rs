@@ -1,6 +1,6 @@
 [package]
 name = "netlify_toml"
-version = "0.4.0"
+version = "0.5.0"
 authors = [
   "David Calavera <david@netlify.com>",
   "George Hahn <george.hahn@netlify.com>",
