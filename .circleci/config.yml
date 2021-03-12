@@ -1,0 +1,46 @@
+version: 2.1
+
+workflows:
+  version: 2
+  rust:
+    jobs:
+      - lint:
+          context: [shared-secrets]
+      - test:
+          context: [shared-secrets]
+
+jobs:
+  lint:
+    description: Run lints
+    executor: rust/medium
+    steps:
+      - checkout
+      - run:
+          name: Check formatting
+          command: cargo fmt -- --check
+      - run:
+          name: Lint with clippy
+          environment:
+            RUSTFLAGS: -Dwarnings
+          command: cargo clippy --all-features -- -D warnings
+
+  test:
+    description: Run unit tests
+    executor: rust/medium
+    steps:
+      - checkout
+      - run:
+          name: Run unit tests
+          command: cargo test --all-features
+
+orbs:
+  rust:
+    executors:
+      medium:
+        description: "Rust Executor"
+        docker:
+          - image: gcr.io/netlify-services/circleci-rust:main
+            auth:
+              username: _json_key
+              password: $GCLOUD_SERVICE_KEY
+        resource_class: medium

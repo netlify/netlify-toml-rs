@@ -1,0 +1,23 @@
+on:
+  push:
+    branches: [main]
+
+name: Release Please
+
+jobs:
+  crates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: google-github-actions/release-please-action@v2
+        id: release
+        with:
+          token: ${{ secrets.PKG_RELEASE_TOKEN }}
+          release-type: rust
+          package-name: netlify_toml
+
+      - uses: actions/checkout@v2
+        if: ${{ steps.release.outputs.release_created }}
+
+      - name: Publish crate
+        if: ${{ steps.release.outputs.release_created }}
+        run: cargo publish --token ${{ secrets.CRATES_IO_TOKEN }}
