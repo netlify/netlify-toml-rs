@@ -39,7 +39,7 @@ for = "/foo"
     );
 
     let context = config.context.unwrap();
-    let ref prod = context.get("production").unwrap();
+    let prod = context.get("production").unwrap();
     if let Some(ref cmd) = prod.command {
         assert_eq!(cmd, &String::from("make prod"));
     }
@@ -84,7 +84,7 @@ for = "/foo"
 
     let result = netlify_toml::from_str(&io);
     match result {
-        Ok(v) => assert!(false, "unexpected config: {:?}", v),
+        Ok(v) => panic!("unexpected config: {:?}", v),
         Err(e) => println!("error parsing headers: {:?}", e),
     }
 }
@@ -142,6 +142,7 @@ fn test_full_redirect_rules() {
   conditions = {Language = ["en"], Country = ["US"], Role = ["admin"]}
   headers = {X-From = "Netlify"}
   signed = "API_SIGNATURE_TOKEN"
+  edge-handler = "hello-world"
     "#;
 
     let config = netlify_toml::from_str(&io).unwrap();
@@ -154,6 +155,7 @@ fn test_full_redirect_rules() {
     assert_eq!("API_SIGNATURE_TOKEN", redirect.signed.unwrap());
     assert_eq!(302, redirect.status);
     assert_eq!(true, redirect.force);
+    assert_eq!("hello-world", redirect.edge_handler.unwrap());
 
     let query = redirect.query.unwrap();
     assert_eq!(1, query.len());
