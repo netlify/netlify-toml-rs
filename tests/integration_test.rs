@@ -39,7 +39,7 @@ for = "/foo"
     );
 
     let context = config.context.unwrap();
-    let ref prod = context.get("production").unwrap();
+    let prod = context.get("production").unwrap();
     if let Some(ref cmd) = prod.command {
         assert_eq!(cmd, &String::from("make prod"));
     }
@@ -84,7 +84,7 @@ for = "/foo"
 
     let result = netlify_toml::from_str(&io);
     match result {
-        Ok(v) => assert!(false, "unexpected config: {:?}", v),
+        Ok(v) => panic!("unexpected config: {:?}", v),
         Err(e) => println!("error parsing headers: {:?}", e),
     }
 }
