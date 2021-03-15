@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://www.github.com/netlify/netlify-toml-rs/compare/v0.5.0...v0.6.0) (2021-03-15)
+
+
+### Features
+
+* Continue allowing parsing old-style edge handlers ([#25](https://www.github.com/netlify/netlify-toml-rs/issues/25)) ([2e2dc30](https://www.github.com/netlify/netlify-toml-rs/commit/2e2dc30ae14e234008d08a979458669a1be8b862))
+
 ## [0.5.0](https://www.github.com/netlify/netlify-toml-rs/compare/v0.4.0...v0.5.0) (2021-03-12)
 
 
