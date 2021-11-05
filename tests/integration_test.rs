@@ -1,3 +1,5 @@
+use netlify_toml::Bundler;
+
 extern crate netlify_toml;
 
 #[test]
@@ -7,8 +9,12 @@ fn test_it_parses_complete_example() {
 command = "make site"
 edge_handlers = "src/custom-edge-handlers"
 
+[functions]
+directory = "test-dir"
+
 [context.production] # this is an alias for build
 command = "make prod"
+functions = { node_bundler = "esbuild" }
 
 [context.deploy-preview]
 command = "make dp"
@@ -43,11 +49,18 @@ for = "/foo"
     if let Some(ref cmd) = prod.command {
         assert_eq!(cmd, &String::from("make prod"));
     }
+    assert_eq!(
+        prod.functions.as_ref().unwrap().node_bundler.unwrap(),
+        Bundler::Esbuild,
+    );
 
     let headers = config.headers.unwrap();
     let header = &headers[0];
     assert_eq!("/foo", header.path);
-    assert_eq!(1, header.headers["X-Foo"].values.len())
+    assert_eq!(1, header.headers["X-Foo"].values.len());
+
+    let functions = config.functions.unwrap();
+    assert_eq!(functions.directory.unwrap(), "test-dir");
 }
 
 #[test]
