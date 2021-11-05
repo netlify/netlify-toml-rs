@@ -27,7 +27,7 @@ pub struct Config {
     pub template: Option<Template>,
 }
 
-/// A specialized [`Context`] that holds values similar to a regular context but
+/// Build configuration.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct Build {
     pub base: Option<String>,
@@ -39,7 +39,7 @@ pub struct Build {
     pub publish: Option<String>,
 }
 
-/// Context holds the build variables Netlify uses to build a site before deploying it.
+/// Context overrides the build variables Netlify uses to build a site before deploying it.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct Context {
     pub base: Option<String>,
