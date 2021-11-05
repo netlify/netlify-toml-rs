@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.0.0](https://www.github.com/netlify/netlify-toml-rs/compare/v0.6.0...v1.0.0) (2021-11-05)
+
+
+### ⚠ BREAKING CHANGES
+
+* Top-level functions property is an object (#31)
+
+### Bug Fixes
+
+* Top-level functions property is an object ([#31](https://www.github.com/netlify/netlify-toml-rs/issues/31)) ([fbb374c](https://www.github.com/netlify/netlify-toml-rs/commit/fbb374ca84238cdeee6998f631d38c024f3b032c))
+
 ## [0.6.0](https://www.github.com/netlify/netlify-toml-rs/compare/v0.5.0...v0.6.0) (2021-03-15)
 
 
