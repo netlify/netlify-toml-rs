@@ -14,7 +14,7 @@ directory = "test-dir"
 
 [context.production] # this is an alias for build
 command = "make prod"
-functions = { node_bundler = "other-test-dir" }
+functions = { node_bundler = "esbuild" }
 
 [context.deploy-preview]
 command = "make dp"
