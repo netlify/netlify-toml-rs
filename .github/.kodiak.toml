@@ -1,0 +1,3 @@
+version = 1
+merge.blocking_labels = ["WIP", "blocked"]
+approve.auto_approve_usernames = ["netlify-jenkins", "netlify-bot"]
