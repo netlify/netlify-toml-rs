@@ -12,11 +12,8 @@ use toml::de::Error;
 /// Config represents the full configuration within a netlify.toml file.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct Config {
-    pub build: Option<Context>,
+    pub build: Option<Build>,
     pub context: Option<HashMap<String, Context>>,
-    pub redirects: Option<Vec<Redirect>>,
-    pub headers: Option<Vec<Header>>,
-    pub template: Option<Template>,
     #[serde(
         alias = "edgeHandlers",
         alias = "edge-handlers",
@@ -24,18 +21,70 @@ pub struct Config {
         default
     )]
     pub edge_handlers: Vec<EdgeHandler>,
+    pub functions: Option<Functions>,
+    pub headers: Option<Vec<Header>>,
+    pub redirects: Option<Vec<Redirect>>,
+    pub template: Option<Template>,
 }
 
-/// Context holds the build variables Netlify uses to build a site before deploying it.
+/// Build configuration.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
-pub struct Context {
+pub struct Build {
     pub base: Option<String>,
-    pub publish: Option<String>,
     pub command: Option<String>,
     pub functions: Option<String>,
     pub environment: Option<HashMap<String, String>>,
     #[serde(alias = "edge-handlers", alias = "edgeHandlers")]
     pub edge_handlers: Option<String>,
+    pub publish: Option<String>,
+}
+
+/// Context overrides the build variables Netlify uses to build a site before deploying it.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct Context {
+    pub base: Option<String>,
+    pub command: Option<String>,
+    #[serde(alias = "edge-handlers", alias = "edgeHandlers")]
+    pub edge_handlers: Option<String>,
+    pub environment: Option<HashMap<String, String>>,
+    pub functions: Option<ContextFunctions>,
+    pub publish: Option<String>,
+}
+
+/// Netlify Functions configuration.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct Functions {
+    pub directory: Option<String>,
+    #[serde(default)]
+    pub external_node_modules: Vec<String>,
+    #[serde(default)]
+    pub ignored_node_modules: Vec<String>,
+    #[serde(default)]
+    pub included_files: Vec<String>,
+    pub node_bundler: Option<Bundler>,
+}
+
+/// Context-specific Netlify Functions configuration.
+///
+/// Disallows specifying the `directory` property.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct ContextFunctions {
+    #[serde(default)]
+    pub external_node_modules: Vec<String>,
+    #[serde(default)]
+    pub ignored_node_modules: Vec<String>,
+    #[serde(default)]
+    pub included_files: Vec<String>,
+    pub node_bundler: Option<Bundler>,
+}
+
+/// The netlify functions builder to use.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Bundler {
+    Esbuild,
+    Nft,
+    Zisi,
 }
 
 /// Redirect holds information about a url redirect.
