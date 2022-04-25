@@ -15,7 +15,7 @@ jobs:
           release-type: rust
           package-name: netlify_toml
 
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         if: ${{ steps.release.outputs.release_created }}
 
       - name: Publish crate
